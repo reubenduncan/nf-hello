@@ -1,32 +1,120 @@
-#!/usr/bin/env nextflow
+nextflow.enable.dsl = 2
 
-process sayHello {
+params.manifest = null
+params.outdir = null
+params.checkm2_database = 'https://zenodo.org/records/14897628/files/checkm2_database.tar.gz'
+
+if (!params.manifest) {
+    error "Provide --manifest with a TSV containing batch_id and uri columns."
+}
+if (!params.outdir) {
+    error "Provide --outdir for published CheckM2 summaries."
+}
+
+process DOWNLOAD_CHECKM2_DATABASE {
+    tag 'CheckM2 database'
+    label 'process_single'
+
+    publishDir "${params.outdir}/database", mode: 'copy', overwrite: false
+
     input:
-    val greeting
+    val database_url
 
     output:
-    path "${greeting}.txt"
+    path 'checkm2_database.tar.gz', emit: database
 
     script:
     """
-    echo '${greeting} world!' > '${greeting}.txt'
+    curl --fail --location --retry 5 --retry-all-errors \\
+        --output checkm2_database.tar.gz \\
+        '${database_url}'
+    """
+
+    stub:
+    """
+    touch checkm2_database.tar.gz
+    """
+}
+
+process CHECKM2_QC {
+    tag "${batch_id} (${bins.size()} bins)"
+    label 'process_medium'
+
+    publishDir "${params.outdir}/batches", mode: 'copy', pattern: '*_checkm2_report.tsv', overwrite: true
+
+    input:
+    tuple val(batch_id), path(bins, stageAs: 'input_bins/*')
+    path checkm2_database
+
+    output:
+    tuple val(batch_id), path("${batch_id}_checkm2_report.tsv"), emit: report
+
+    script:
+    """
+    mkdir input_fasta checkm2_db
+    for bin in input_bins/*.fa.gz; do
+        gunzip -c "\$bin" > "input_fasta/\$(basename "\${bin%.gz}")"
+    done
+
+    tar -xzf ${checkm2_database} -C checkm2_db
+    db=\$(find -L checkm2_db -type f -name '*.dmnd' -print -quit)
+    test -n "\$db"
+
+    checkm2 predict \\
+        --input input_fasta/*.fa \\
+        --output-directory '${batch_id}' \\
+        --threads ${task.cpus} \\
+        --database_path "\$db"
+
+    cp '${batch_id}/quality_report.tsv' '${batch_id}_checkm2_report.tsv'
+    """
+
+    stub:
+    """
+    printf 'Name\tCompleteness\tContamination\n' > '${batch_id}_checkm2_report.tsv'
+    """
+}
+
+process MERGE_CHECKM2_REPORTS {
+    tag 'merge CheckM2 summaries'
+    label 'process_single'
+
+    publishDir "${params.outdir}", mode: 'copy', overwrite: true
+
+    input:
+    path reports
+
+    output:
+    path 'checkm2_summary.tsv', emit: summary
+
+    script:
+    """
+    awk 'FNR == 1 && NR != 1 { next } { print }' ${reports} > checkm2_summary.tsv
+    """
+
+    stub:
+    """
+    printf 'Name\tCompleteness\tContamination\n' > checkm2_summary.tsv
     """
 }
 
 workflow {
-    main:
-    ch_greetings = channel.of('Bonjour', 'Ciao', 'Hello', 'Hola')
-    sayHello(ch_greetings)
+    manifest = Channel
+        .fromPath(params.manifest, checkIfExists: true)
+        .splitCsv(header: true, sep: '\t')
+        .map { row -> tuple(row.batch_id, file(row.uri)) }
+        .groupTuple()
+        .map { batch_id, batch_bins -> tuple(batch_id, batch_bins.sort { a, b -> a.name <=> b.name }) }
 
-    // Workflow output definition (modern approach): assign the channel of
-    // published files to a named output…
-    publish:
-    greetings = sayHello.out
-}
+    DOWNLOAD_CHECKM2_DATABASE(params.checkm2_database)
+    CHECKM2_QC(manifest, DOWNLOAD_CHECKM2_DATABASE.out.database)
 
-// …and declare where that named output lands under outputDir.
-output {
-    greetings {
-        path 'greetings'
-    }
+    reports = CHECKM2_QC.out.report
+        .map { batch_id, report -> report }
+        .collect()
+    MERGE_CHECKM2_REPORTS(reports)
+
+    emit:
+    checkm2_summary = MERGE_CHECKM2_REPORTS.out.summary
+    batch_reports = CHECKM2_QC.out.report
 }
