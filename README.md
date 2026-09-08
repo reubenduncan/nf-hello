@@ -8,3 +8,8 @@ The input manifest contains one S3 FASTA URI per retained bin and groups them
 by binner/coassembly. The workflow downloads the CheckM2 v1.1.0 database once,
 runs at most six independent batches concurrently, publishes each batch report,
 and merges them into `checkm2_summary.tsv`.
+
+`--serial_gene_batches` accepts a comma-separated list of batch IDs to route
+through sequential Prodigal gene calling before CheckM2 prediction. This is a
+targeted recovery mode for a batch that triggers CheckM2's parallel gene-calling
+failure; all other batches retain the standard CheckM2 path.
