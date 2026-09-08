@@ -25,9 +25,34 @@ process DOWNLOAD_CHECKM2_DATABASE {
 
     script:
     """
-    curl --fail --location --retry 5 --retry-all-errors \\
-        --output checkm2_database.tar.gz \\
-        '${database_url}'
+    python - <<'PY'
+    import time
+    from urllib.error import HTTPError, URLError
+    from urllib.request import Request, urlopen
+
+    url = '${database_url}'
+    destination = 'checkm2_database.tar.gz'
+
+    for attempt in range(1, 6):
+        try:
+            request = Request(url, headers={'User-Agent': 'Kenya-Sand-Dam-CheckM2-QC/1.0'})
+            with urlopen(request, timeout=120) as response, open(destination, 'wb') as output:
+                expected_bytes = response.headers.get('Content-Length')
+                bytes_written = 0
+                while True:
+                    chunk = response.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    output.write(chunk)
+                    bytes_written += len(chunk)
+            if expected_bytes is not None and bytes_written != int(expected_bytes):
+                raise IOError(f'Incomplete download: {bytes_written} of {expected_bytes} bytes')
+            break
+        except (HTTPError, URLError, OSError, TimeoutError) as error:
+            if attempt == 5:
+                raise
+            time.sleep(attempt * 10)
+    PY
     """
 
     stub:
