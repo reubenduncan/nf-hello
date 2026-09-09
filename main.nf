@@ -179,14 +179,18 @@ workflow {
         .map { row -> tuple(row.batch_id, file(row.uri)) }
         .groupTuple()
         .map { batch_id, batch_bins -> tuple(batch_id, batch_bins.sort { a, b -> a.name <=> b.name }) }
+        .branch { batch_id, batch_bins ->
+            serial: serial_batch_ids.contains(batch_id)
+            standard: !serial_batch_ids.contains(batch_id)
+        }
 
     DOWNLOAD_CHECKM2_DATABASE(params.checkm2_database)
     CHECKM2_QC(
-        batches.filter { batch_id, batch_bins -> !serial_batch_ids.contains(batch_id) },
+        batches.standard,
         DOWNLOAD_CHECKM2_DATABASE.out.database
     )
     CHECKM2_QC_SERIAL_GENES(
-        batches.filter { batch_id, batch_bins -> serial_batch_ids.contains(batch_id) },
+        batches.serial,
         DOWNLOAD_CHECKM2_DATABASE.out.database
     )
 
