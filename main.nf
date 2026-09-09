@@ -3,7 +3,7 @@ nextflow.enable.dsl = 2
 params.manifest = null
 params.outdir = null
 params.checkm2_database = 'https://zenodo.org/records/14897628/files/checkm2_database.tar.gz'
-params.serial_gene_batches = 'FLYE-MaxBin2-group-167-sf'
+params.serial_gene_batches = 'FLYE-MaxBin2-group-167-sf,FLYE-MetaBAT2-group-211-sf,FLYE-MetaBAT2-group-579-hp,FLYE-MetaBAT2-group-579-sf,FLYE-SemiBin2-group-106-ex,FLYE-SemiBin2-group-106-hp,FLYE-SemiBin2-group-106-sf,FLYE-SemiBin2-group-167-ex,FLYE-SemiBin2-group-167-hp,FLYE-SemiBin2-group-167-sf,FLYE-SemiBin2-group-211-ex,FLYE-SemiBin2-group-211-hp,FLYE-SemiBin2-group-211-sf,FLYE-SemiBin2-group-279-ex,FLYE-SemiBin2-group-279-hp,FLYE-SemiBin2-group-279-sf,FLYE-SemiBin2-group-579-ex,FLYE-SemiBin2-group-579-hp,FLYE-SemiBin2-group-579-sf'
 
 if (!params.manifest) {
     error "Provide --manifest with a TSV containing batch_id and uri columns."
