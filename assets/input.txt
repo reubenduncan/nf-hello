@@ -1,0 +1,1 @@
+This text is staged into every greeting task and copied into its output file.

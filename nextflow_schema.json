@@ -1,0 +1,68 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "nf-hello pipeline parameters",
+    "description": "Options for the text-only greeting example pipeline.",
+    "type": "object",
+    "$defs": {
+        "input_options": {
+            "title": "Input options",
+            "type": "object",
+            "description": "Choose the text file included in each greeting output.",
+            "default": "",
+            "properties": {
+                "input_file": {
+                    "type": "string",
+                    "format": "file-path",
+                    "mimetype": "text/plain",
+                    "default": "assets/input.txt",
+                    "description": "Path to a text file copied into every greeting output. Defaults to the example file bundled with the pipeline."
+                }
+            },
+            "fa_icon": "fas fa-file-alt"
+        },
+        "greeting_options": {
+            "title": "Greeting options",
+            "type": "object",
+            "description": "Set the recipient and tone for each greeting.",
+            "default": "",
+            "properties": {
+                "recipient": {
+                    "type": "string",
+                    "default": "world",
+                    "description": "Name or phrase addressed by each greeting."
+                },
+                "tone": {
+                    "type": "string",
+                    "default": "friendly",
+                    "enum": ["friendly", "formal", "curious"],
+                    "description": "Punctuation used at the end of each greeting: exclamation mark, full stop, or question mark."
+                }
+            },
+            "fa_icon": "fas fa-comment"
+        },
+        "output_options": {
+            "title": "Output options",
+            "type": "object",
+            "description": "Add a numeric label and choose the letter case of each greeting.",
+            "default": "",
+            "properties": {
+                "run_number": {
+                    "type": "number",
+                    "default": 1.0,
+                    "description": "Numeric label written to every greeting file."
+                },
+                "uppercase": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Convert the greeting line to uppercase."
+                }
+            },
+            "fa_icon": "fas fa-file-export"
+        }
+    },
+    "allOf": [
+        { "$ref": "#/$defs/input_options" },
+        { "$ref": "#/$defs/greeting_options" },
+        { "$ref": "#/$defs/output_options" }
+    ]
+}
